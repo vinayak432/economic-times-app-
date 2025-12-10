@@ -7,7 +7,7 @@ pipeline {
     }
 
     stages {
-      {
+      
         stage('checkout') {
             steps {
                 sh "rm -rf economic-times-app"
@@ -17,8 +17,9 @@ pipeline {
    stage(' build') {
             steps {
                 sh "mvn clean package"
+                sh "sudo cp target/*.war /opt/tomcat10/webapps"
             }
         }
-    }
+    
   }
 }
