@@ -1,0 +1,24 @@
+pipeline {
+    agent { label 'java' }
+
+    tools{
+    jdk 'JDK17'
+    maven 'maven'
+    }
+
+    stages {
+        stage('economic-times-app') {
+        stage('checkout') {
+            steps {
+                sh "rm -rf economic-times-app"
+              sh  "git clone https://github.com/vinayak432/economic-times-app-.git"
+            }
+        }
+   stage(' build') {
+            steps {
+                sh "mvn clean package"
+            }
+        }
+    }
+  }
+}
