@@ -6,8 +6,9 @@ on:
   pull_request:
 
 jobs:
-  prereqeuisites-
-    runs-on: ubuntu-latest
+ runs-on: ubuntu-latest
+    prereqeuisites-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
