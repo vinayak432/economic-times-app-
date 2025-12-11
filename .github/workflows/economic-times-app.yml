@@ -6,9 +6,8 @@ on:
   pull_request:
 
 jobs:
- runs-on: ubuntu-latest
-    prereqeuisites-
-    
+    needs: prereqeuisites-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,7 +18,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
     
-  build:
+    build:
     needs: prereqeuisites
     runs-on: ubuntu-latest
     steps:
@@ -47,7 +46,7 @@ jobs:
         with:
           name: economic-times-app-wars
 
-       - name: install Tomcat 9
+      - name: install Tomcat 9
         run: |
          wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.1.50/bin/apache-tomcat-10.1.50.tar.gz
           tar -xvzf apache-tomcat-10.1.50.tar.gz
@@ -55,17 +54,17 @@ jobs:
           chmod +x tomcat10/bin/*.sh
 
       - name: Deploy to Tomcat
-      run: |
+        run: |
         cp *.war tomcat10/webapps/
         nohup tomcat10/bin/startup.sh 
 
       - name: Verify Deployment
-      run:
-      response=$(curl -s https://localhost:8080/economic-times-app/)
-      echo "$response" | grep "Welcome to Economic Times App" || true
-      echo "$response" | grep "live news" || true
-      echo "$response" | grep "latest updates" || true
-      tomcat
+        run:
+        response=$(curl -s https://localhost:8080/economic-times-app/)
+        echo "$response" | grep "Welcome to Economic Times App" || true
+        echo "$response" | grep "live news" || true
+        echo "$response" | grep "latest updates" || true
+        tomcat10/bin/shutdown.sh  
 
 
 
