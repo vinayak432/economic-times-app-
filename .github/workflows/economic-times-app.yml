@@ -56,7 +56,7 @@ jobs:
 
       - name: Deploy to Tomcat
         run: |
-        cp /target/*.war tomcat10/webapps/
+        cp ./target/*.war tomcat10/webapps/
         nohup tomcat10/bin/startup.sh 
 
       - name: Verify Deployment
