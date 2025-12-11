@@ -1,0 +1,73 @@
+name: economic-times-app
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  prereqeuisites-
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+    
+  build:
+    needs: prereqeuisites
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build with Maven
+        run: mvn clean package
+      - name: Upload war artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: economic-times-app-wars
+          path: target/*.war
+
+    run:
+      - name: Download war artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: economic-times-app-wars
+
+       - name: install Tomcat 9
+        run: |
+         wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.1.50/bin/apache-tomcat-10.1.50.tar.gz
+          tar -xvzf apache-tomcat-10.1.50.tar.gz
+          mv apache-tomcat-10.1.50 tomcat10
+          chmod +x tomcat10/bin/*.sh
+
+      - name: Deploy to Tomcat
+      run: |
+        cp *.war tomcat10/webapps/
+        nohup tomcat10/bin/startup.sh 
+
+      - name: Verify Deployment
+      run:
+      response=$(curl -s https://localhost:8080/economic-times-app/)
+      echo "$response" | grep "Welcome to Economic Times App" || true
+      echo "$response" | grep "live news" || true
+      echo "$response" | grep "latest updates" || true
+      tomcat
+
+
+
+      
+
+      
