@@ -1,0 +1,68 @@
+pipeline {
+    agent { label 'slave' }
+
+    environment {
+        AWS_REGION   = "ap-northeast-1"
+        AWS_ACCOUNT  = "936045463151"
+        ECR_REPO     = "economic-times-app"
+        IMAGE_TAG    = "${BUILD_NUMBER}"
+        ECR_REGISTRY = "${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                docker build -t ${ECR_REPO}:${IMAGE_TAG} .
+                '''
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                sh '''
+                aws ecr get-login-password --region ${AWS_REGION} | \
+                docker login --username AWS --password-stdin \
+                ${ECR_REGISTRY}
+                '''
+            }
+        }
+
+        stage('Tag Docker Image') {
+            steps {
+                sh '''
+                docker tag ${ECR_REPO}:${IMAGE_TAG} \
+                ${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                sh '''
+                docker push ${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                docker stop economic-times-container || true
+                docker rm economic-times-container || true
+                docker run -d \
+                  -p 8088:8080 \
+                  --name economic-times-container \
+                  ${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}
+                '''
+            }
+        }
+    }
+}
