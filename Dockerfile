@@ -7,5 +7,3 @@ RUN mvn clean package
 FROM tomcat:10.1-jdk21
 #ARG TEST=/var/lib
 COPY --from=mavenbuilder /app/target/economic-times-app.war /usr/local/tomcat/webapps
-
-~                             
