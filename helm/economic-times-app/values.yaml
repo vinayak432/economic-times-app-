@@ -1,9 +1,15 @@
 replicaCount: 1
 
+name: economic-times-app
+namespace: default
+
 image:
   repository: YOUR_DOCKER_USERNAME/economic-times-app
+  tag: latest
   pullPolicy: IfNotPresent
-  tag: "latest"
+
+container:
+  port: 3000
 
 service:
   type: NodePort
@@ -11,9 +17,4 @@ service:
   targetPort: 3000
   nodePort: 30080
 
-containerPort: 3000
-
 resources: {}
-
-nameOverride: ""
-fullnameOverride: ""
