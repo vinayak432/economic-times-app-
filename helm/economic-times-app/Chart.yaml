@@ -1,0 +1,6 @@
+apiVersion: v2
+name: economic-times-app
+description: A Helm chart for Economic Times app
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
