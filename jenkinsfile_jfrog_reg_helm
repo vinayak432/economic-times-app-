@@ -3,14 +3,14 @@ pipeline {
 
     environment {
         APP_NAME = "economic-times-app"
-        DOCKER_IMAGE = "YOUR_DOCKER_USERNAME/economic-times-app"
+        DOCKER_IMAGE = "vinayak432/economic-times-app"
         IMAGE_TAG = "${BUILD_NUMBER}"
 
         CHART_DIR = "helm/economic-times-app"
         CHART_NAME = "economic-times-app"
 
-        JFROG_BASE_URL = "https://YOUR-COMPANY.jfrog.io"
-        JFROG_HELM_REPO = "helm-local"
+        JFROG_BASE_URL = "https://trial1ttau5.jfrog.io/"
+        JFROG_HELM_REPO = "helm-economic-times-app"
         JFROG_HELM_URL = "${JFROG_BASE_URL}/artifactory/${JFROG_HELM_REPO}"
 
         KUBE_NAMESPACE = "default"

@@ -4,17 +4,17 @@ name: economic-times-app
 namespace: default
 
 image:
-  repository: YOUR_DOCKER_USERNAME/economic-times-app
+  repository: vinayak432/economic-times-app
   tag: latest
   pullPolicy: IfNotPresent
 
 container:
-  port: 3000
+  port: 8080
 
 service:
   type: NodePort
-  port: 3000
-  targetPort: 3000
+  port: 8080
+  targetPort: 8080
   nodePort: 30080
 
 resources: {}
