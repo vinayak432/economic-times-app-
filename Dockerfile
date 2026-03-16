@@ -1,18 +1,9 @@
-FROM maven:3.9.6-eclipse-temurin-17 AS build
-
+FROM maven:3.9.12-eclipse-temurin-21-alpine as mavenbuilder
+#ARG TEST=/var/lib/
 WORKDIR /app
+COPY . .
+RUN mvn clean package
 
-COPY pom.xml .
-COPY src ./src
-
-RUN mvn clean package -DskipTests
-
-FROM tomcat:9.0-jdk17-temurin
-
-RUN rm -rf /usr/local/tomcat/webapps/*
-
-COPY --from=build /app/target/*.war /usr/local/tomcat/webapps/economic-times-app.war
-
-EXPOSE 8080
-
-CMD ["catalina.sh", "run"]
+FROM tomcat:10.1-jdk21
+#ARG TEST=/var/lib
+COPY --from=mavenbuilder /app/target/economic-times-app.war /usr/local/tomcat/webapps
