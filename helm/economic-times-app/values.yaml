@@ -1,0 +1,19 @@
+replicaCount: 1
+
+image:
+  repository: YOUR_DOCKER_USERNAME/economic-times-app
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: NodePort
+  port: 3000
+  targetPort: 3000
+  nodePort: 30080
+
+containerPort: 3000
+
+resources: {}
+
+nameOverride: ""
+fullnameOverride: ""
