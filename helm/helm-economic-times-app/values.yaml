@@ -5,8 +5,8 @@ namespace: default
 
 image:
   repository: vinayak432/economic-times-app
-  tag: latest
-  pullPolicy: IfNotPresent
+  tag: "latest"
+  pullPolicy: Always
 
 container:
   port: 8080
