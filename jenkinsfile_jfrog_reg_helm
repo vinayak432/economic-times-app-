@@ -31,6 +31,17 @@ pipeline {
             }
         }
 
+        stage('Verify Tools') {
+            steps {
+                sh '''
+                    docker --version
+                    helm version
+                    kubectl version --client
+                    python3 --version
+                '''
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 sh """
@@ -56,8 +67,21 @@ pipeline {
         stage('Update values.yaml image tag') {
             steps {
                 sh """
-                    sed -i 's|repository:.*|  repository: ${DOCKER_IMAGE}|' ${CHART_DIR}/values.yaml
-                    sed -i 's|tag:.*|  tag: "${IMAGE_TAG}"|' ${CHART_DIR}/values.yaml
+                    python3 - <<EOF
+from pathlib import Path
+import re
+
+p = Path("${CHART_DIR}/values.yaml")
+text = p.read_text()
+
+text = re.sub(r'repository:\\s*.*', 'repository: ${DOCKER_IMAGE}', text)
+text = re.sub(r'tag:\\s*".*?"', 'tag: "${IMAGE_TAG}"', text)
+text = re.sub(r'tag:\\s*[^\\n]+', 'tag: "${IMAGE_TAG}"', text)
+
+p.write_text(text)
+EOF
+                    echo "===== values.yaml ====="
+                    cat ${CHART_DIR}/values.yaml
                 """
             }
         }
@@ -67,6 +91,9 @@ pipeline {
                 sh """
                     sed -i 's|^version:.*|version: 0.1.${BUILD_NUMBER}|' ${CHART_DIR}/Chart.yaml
                     sed -i 's|^appVersion:.*|appVersion: "${IMAGE_TAG}"|' ${CHART_DIR}/Chart.yaml
+
+                    echo "===== Chart.yaml ====="
+                    cat ${CHART_DIR}/Chart.yaml
                 """
             }
         }
@@ -81,6 +108,7 @@ pipeline {
             steps {
                 sh """
                     mkdir -p packaged
+                    rm -f packaged/*.tgz
                     helm package ${CHART_DIR} -d packaged
                     ls -lh packaged
                 """
@@ -110,6 +138,7 @@ pipeline {
         stage('Pull Chart from JFrog OCI') {
             steps {
                 sh """
+                    rm -f ${CHART_NAME}-*.tgz || true
                     CHART_VERSION=\$(grep '^version:' ${CHART_DIR}/Chart.yaml | awk '{print \$2}')
                     echo "Pulling ${CHART_NAME} version \$CHART_VERSION from ${JFROG_OCI_URL}"
                     helm pull ${JFROG_OCI_URL}/${CHART_NAME} --version \$CHART_VERSION
