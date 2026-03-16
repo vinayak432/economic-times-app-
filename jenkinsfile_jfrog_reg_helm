@@ -6,7 +6,7 @@ pipeline {
         DOCKER_IMAGE = "vinayak432/economic-times-app"
         IMAGE_TAG = "${BUILD_NUMBER}"
 
-        CHART_DIR = "helm/economic-times-app"
+        CHART_DIR = "helm/helm-economic-times-app"
         CHART_NAME = "economic-times-app"
 
         JFROG_HOST = "trial1ttau5.jfrog.io"
