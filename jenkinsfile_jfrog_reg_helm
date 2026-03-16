@@ -9,9 +9,9 @@ pipeline {
         CHART_DIR = "helm/economic-times-app"
         CHART_NAME = "economic-times-app"
 
-        JFROG_BASE_URL = "https://trial1ttau5.jfrog.io/"
-        JFROG_HELM_REPO = "helm-economic-times-app"
-        JFROG_HELM_URL = "${JFROG_BASE_URL}/artifactory/${JFROG_HELM_REPO}"
+        JFROG_HOST = "trial1ttau5.jfrog.io"
+        JFROG_HELM_REPO = "economic-times-app"
+        JFROG_OCI_URL = "oci://${JFROG_HOST}/${JFROG_HELM_REPO}"
 
         KUBE_NAMESPACE = "default"
         RELEASE_NAME = "economic-times-app"
@@ -47,7 +47,7 @@ pipeline {
                         echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
                         docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
                         docker push ${DOCKER_IMAGE}:latest
-                        
+                        docker logout || true
                     """
                 }
             }
@@ -87,46 +87,46 @@ pipeline {
             }
         }
 
-        stage('Upload Chart to JFrog') {
+        stage('Login to JFrog Helm OCI Registry') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jfrog-creds', usernameVariable: 'JFROG_USER', passwordVariable: 'JFROG_PASS')]) {
                     sh """
-                        CHART_PACKAGE=\$(ls packaged/${CHART_NAME}-*.tgz | head -n 1)
-                        echo "Uploading \$CHART_PACKAGE to ${JFROG_HELM_URL}"
-                        curl -u "${JFROG_USER}:${JFROG_PASS}" -T \$CHART_PACKAGE ${JFROG_HELM_URL}/
+                        echo "${JFROG_PASS}" | helm registry login ${JFROG_HOST} -u "${JFROG_USER}" --password-stdin
                     """
                 }
             }
         }
 
-        stage('Pull Chart from JFrog') {
+        stage('Push Chart to JFrog OCI') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'jfrog-creds', usernameVariable: 'JFROG_USER', passwordVariable: 'JFROG_PASS')]) {
-                    sh """
-                        helm repo remove jfrog-helm || true
-                        helm repo add jfrog-helm ${JFROG_HELM_URL} --username ${JFROG_USER} --password ${JFROG_PASS}
-                        helm repo update
-                        helm pull jfrog-helm/${CHART_NAME}
-                        ls -lh *.tgz
-                    """
-                }
+                sh """
+                    CHART_PACKAGE=\$(ls packaged/${CHART_NAME}-*.tgz | head -n 1)
+                    echo "Pushing \$CHART_PACKAGE to ${JFROG_OCI_URL}"
+                    helm push \$CHART_PACKAGE ${JFROG_OCI_URL}
+                """
             }
         }
 
-        stage('Deploy from JFrog Helm Repo') {
+        stage('Pull Chart from JFrog OCI') {
             steps {
-                withCredentials([
-                    usernamePassword(credentialsId: 'jfrog-creds', usernameVariable: 'JFROG_USER', passwordVariable: 'JFROG_PASS'),
-                    file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')
-                ]) {
+                sh """
+                    CHART_VERSION=\$(grep '^version:' ${CHART_DIR}/Chart.yaml | awk '{print \$2}')
+                    echo "Pulling ${CHART_NAME} version \$CHART_VERSION from ${JFROG_OCI_URL}"
+                    helm pull ${JFROG_OCI_URL}/${CHART_NAME} --version \$CHART_VERSION
+                    ls -lh *.tgz
+                """
+            }
+        }
+
+        stage('Deploy from JFrog Helm OCI') {
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')]) {
                     sh """
                         export KUBECONFIG=${KUBECONFIG_FILE}
+                        CHART_VERSION=\$(grep '^version:' ${CHART_DIR}/Chart.yaml | awk '{print \$2}')
 
-                        helm repo remove jfrog-helm || true
-                        helm repo add jfrog-helm ${JFROG_HELM_URL} --username ${JFROG_USER} --password ${JFROG_PASS}
-                        helm repo update
-
-                        helm upgrade --install ${RELEASE_NAME} jfrog-helm/${CHART_NAME} \
+                        helm upgrade --install ${RELEASE_NAME} ${JFROG_OCI_URL}/${CHART_NAME} \
+                          --version \$CHART_VERSION \
                           --namespace ${KUBE_NAMESPACE} \
                           --create-namespace \
                           --set name=${APP_NAME} \
@@ -143,14 +143,15 @@ pipeline {
     }
 
     post {
+        always {
+            sh 'helm registry logout ${JFROG_HOST} || true'
+            cleanWs()
+        }
         success {
-            echo "SUCCESS: Docker image pushed, Helm chart uploaded to JFrog, pulled and deployed successfully."
+            echo "SUCCESS: Docker image pushed, Helm chart pushed to JFrog OCI, pulled and deployed successfully."
         }
         failure {
             echo "FAILED: Check Jenkins logs."
-        }
-        always {
-            cleanWs()
         }
     }
 }
