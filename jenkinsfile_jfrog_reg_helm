@@ -147,43 +147,63 @@ EOF
             }
         }
 
-      stage('Deploy from JFrog Helm OCI') {
-    steps {
-        sh """
-            export KUBECONFIG=/root/.kube/config
-            CHART_VERSION=\$(grep '^version:' ${CHART_DIR}/Chart.yaml | awk '{print \$2}')
+        stage('Deploy from JFrog Helm OCI') {
+            steps {
+                sh """
+                    set +e
+                    export KUBECONFIG=/var/lib/jenkins/.kube/config
+                    CHART_VERSION=\$(grep '^version:' ${CHART_DIR}/Chart.yaml | awk '{print \$2}')
 
-            echo "===== Kube Context ====="
-            kubectl config current-context || true
+                    echo "===== Kube Context ====="
+                    kubectl config current-context || true
 
-            echo "===== Nodes ====="
-            kubectl get nodes || true
+                    echo "===== Nodes ====="
+                    kubectl get nodes || true
 
-            echo "===== Existing Helm Releases ====="
-            helm list -A || true
+                    echo "===== Existing Helm Releases ====="
+                    helm list -A || true
 
-            echo "===== Existing Services ====="
-            kubectl get svc -n ${KUBE_NAMESPACE} || true
+                    echo "===== Existing Services ====="
+                    kubectl get svc -n ${KUBE_NAMESPACE} || true
 
-            echo "===== Deploying chart version \$CHART_VERSION ====="
-            helm upgrade --install ${RELEASE_NAME} ${JFROG_OCI_URL}/${CHART_NAME} \
-              --version \$CHART_VERSION \
-              --namespace ${KUBE_NAMESPACE} \
-              --create-namespace \
-              --set name=${APP_NAME} \
-              --set namespace=${KUBE_NAMESPACE} \
-              --set image.repository=${DOCKER_IMAGE} \
-              --set image.tag=${IMAGE_TAG} \
-              --debug
+                    echo "===== Deploying chart version \$CHART_VERSION ====="
+                    helm upgrade --install ${RELEASE_NAME} ${JFROG_OCI_URL}/${CHART_NAME} \
+                      --version \$CHART_VERSION \
+                      --namespace ${KUBE_NAMESPACE} \
+                      --create-namespace \
+                      --set name=${APP_NAME} \
+                      --set namespace=${KUBE_NAMESPACE} \
+                      --set image.repository=${DOCKER_IMAGE} \
+                      --set image.tag=${IMAGE_TAG} \
+                      --debug
 
-            echo "===== Pods ====="
-            kubectl get pods -n ${KUBE_NAMESPACE} || true
+                    EXIT_CODE=\$?
 
-            echo "===== Services ====="
-            kubectl get svc -n ${KUBE_NAMESPACE} || true
+                    echo "===== Pods ====="
+                    kubectl get pods -n ${KUBE_NAMESPACE} || true
 
-            echo "===== Helm Releases ====="
-            helm list -A || true
-        """
+                    echo "===== Services ====="
+                    kubectl get svc -n ${KUBE_NAMESPACE} || true
+
+                    echo "===== Helm Releases ====="
+                    helm list -A || true
+
+                    exit \$EXIT_CODE
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'helm registry logout ${JFROG_HOST} || true'
+            cleanWs()
+        }
+        success {
+            echo "SUCCESS: Docker image pushed, Helm chart pushed to JFrog OCI, pulled and deployed successfully."
+        }
+        failure {
+            echo "FAILED: Check Jenkins logs."
+        }
     }
 }
