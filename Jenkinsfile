@@ -61,7 +61,7 @@ spec:
   stages {
     stage('Checkout') {
       steps {
-        git branch: 'main',
+        git branch: 'jen-pod-k8s-agent',
             url: 'https://github.com/vinayak432/economic-times-app-.git'
       }
     }
