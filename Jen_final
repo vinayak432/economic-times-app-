@@ -1,0 +1,113 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "vinayak432/economic-times-app"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+
+        CHART_DIR = "helm/helm-economic-times-app"
+        CHART_NAME = "economic-times-app"
+
+        JFROG_HOST = "trial1ttau5.jfrog.io"
+        JFROG_REPO = "economic-times-app"
+        JFROG_OCI = "oci://${JFROG_HOST}/${JFROG_REPO}"
+
+        RELEASE_NAME = "economic-times-app"
+        NAMESPACE = "default"
+
+        KUBECONFIG = "/var/lib/jenkins/.kube/config"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/vinayak432/economic-times-app-.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
+                    docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest
+                """
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+                        docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
+                        docker push ${DOCKER_IMAGE}:latest
+                        docker logout || true
+                    """
+                }
+            }
+        }
+
+        stage('Update Helm Files') {
+            steps {
+                sh """
+                    sed -i 's|repository:.*|  repository: ${DOCKER_IMAGE}|' ${CHART_DIR}/values.yaml
+                    sed -i 's|tag:.*|  tag: "${IMAGE_TAG}"|' ${CHART_DIR}/values.yaml
+                    sed -i 's|^version:.*|version: 0.1.${BUILD_NUMBER}|' ${CHART_DIR}/Chart.yaml
+                    sed -i 's|^appVersion:.*|appVersion: "${IMAGE_TAG}"|' ${CHART_DIR}/Chart.yaml
+                """
+            }
+        }
+
+        stage('Package Helm Chart') {
+            steps {
+                sh """
+                    rm -rf packaged
+                    mkdir packaged
+                    helm lint ${CHART_DIR}
+                    helm package ${CHART_DIR} -d packaged
+                """
+            }
+        }
+
+        stage('Push Helm Chart to JFrog') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'jfrog-creds', usernameVariable: 'JFROG_USER', passwordVariable: 'JFROG_PASS')]) {
+                    sh """
+                        echo "${JFROG_PASS}" | helm registry login ${JFROG_HOST} -u "${JFROG_USER}" --password-stdin
+                        helm push packaged/${CHART_NAME}-0.1.${BUILD_NUMBER}.tgz ${JFROG_OCI}
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh """
+                    helm upgrade --install ${RELEASE_NAME} ${JFROG_OCI}/${CHART_NAME} \
+                      --version 0.1.${BUILD_NUMBER} \
+                      --namespace ${NAMESPACE} \
+                      --create-namespace \
+                      --set image.repository=${DOCKER_IMAGE} \
+                      --set image.tag=${IMAGE_TAG}
+
+                    kubectl get pods -n ${NAMESPACE}
+                    kubectl get svc -n ${NAMESPACE}
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'helm registry logout ${JFROG_HOST} || true'
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs.'
+        }
+    }
+}
