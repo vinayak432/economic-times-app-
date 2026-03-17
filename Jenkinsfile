@@ -24,7 +24,7 @@ spec:
           mountPath: /var/run/docker.sock
 
     - name: helmkubectl
-      image: dtzar/helm-kubectl:3.14.4
+      image: dtzar/helm-kubectl
       command: ['cat']
       tty: true
 
@@ -55,6 +55,7 @@ spec:
   options {
     timestamps()
     disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
   }
 
   stages {
@@ -115,9 +116,12 @@ spec:
           sh '''
             rm -rf packaged
             mkdir -p packaged
+
             helm version
             helm lint ${CHART_DIR}
             helm package ${CHART_DIR} -d packaged
+
+            echo "===== Packaged Helm Chart ====="
             ls -lh packaged
           '''
         }
@@ -165,6 +169,7 @@ spec:
               kubectl get pods -n ${NAMESPACE}
               kubectl get svc -n ${NAMESPACE}
               kubectl get deploy -n ${NAMESPACE}
+              kubectl get ingress -n ${NAMESPACE} || true
             '''
           }
         }
