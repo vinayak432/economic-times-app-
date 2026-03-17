@@ -137,8 +137,15 @@ spec:
             passwordVariable: 'JFROG_PASS'
           )]) {
             sh '''
+              echo "===== Packaged directory contents ====="
+              ls -lh packaged
+
+              CHART_PACKAGE=$(ls packaged/*.tgz | head -n 1)
+
+              echo "Using chart package: ${CHART_PACKAGE}"
+
               echo "${JFROG_PASS}" | helm registry login ${JFROG_HOST} -u "${JFROG_USER}" --password-stdin
-              helm push packaged/${CHART_NAME}-0.1.${BUILD_NUMBER}.tgz ${JFROG_OCI}
+              helm push ${CHART_PACKAGE} ${JFROG_OCI}
             '''
           }
         }
