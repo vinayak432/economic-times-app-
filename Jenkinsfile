@@ -39,17 +39,17 @@ spec:
 
   environment {
     DOCKER_IMAGE = "vinayak432/economic-times-app"
-    IMAGE_TAG = "${BUILD_NUMBER}"
+    IMAGE_TAG    = "${BUILD_NUMBER}"
 
-    CHART_DIR = "helm/helm-economic-times-app"
+    CHART_DIR  = "helm/helm-economic-times-app"
     CHART_NAME = "economic-times-app"
 
     JFROG_HOST = "trial1ttau5.jfrog.io"
     JFROG_REPO = "economic-times-app"
-    JFROG_OCI = "oci://${JFROG_HOST}/${JFROG_REPO}"
+    JFROG_OCI  = "oci://${JFROG_HOST}/${JFROG_REPO}"
 
     RELEASE_NAME = "economic-times-app"
-    NAMESPACE = "default"
+    NAMESPACE    = "default"
   }
 
   options {
@@ -59,6 +59,7 @@ spec:
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         git branch: 'jen-pod-k8s-agent',
@@ -69,11 +70,17 @@ spec:
     stage('Build Docker Image') {
       steps {
         container('docker') {
-          sh """
+          sh '''
+            echo "===== Docker Version ====="
             docker version
+
+            echo "===== Build Docker Image ====="
             docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
             docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest
-          """
+
+            echo "===== Local Docker Images ====="
+            docker images | grep economic-times-app || true
+          '''
         }
       }
     }
@@ -87,9 +94,13 @@ spec:
             passwordVariable: 'DOCKER_PASS'
           )]) {
             sh '''
+              echo "===== Docker Login ====="
               echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+
+              echo "===== Push Docker Tags ====="
               docker push ${DOCKER_IMAGE}:${IMAGE_TAG}
               docker push ${DOCKER_IMAGE}:latest
+
               docker logout || true
             '''
           }
@@ -101,9 +112,13 @@ spec:
       steps {
         container('helmkubectl') {
           sh """
-            sed -i 's|^version:.*|version: 0.1.${BUILD_NUMBER}|' ${CHART_DIR}/Chart.yaml
-            sed -i 's|^appVersion:.*|appVersion: "${IMAGE_TAG}"|' ${CHART_DIR}/Chart.yaml
-            echo "===== Updated Chart.yaml ====="
+            echo "===== Chart.yaml BEFORE update ====="
+            cat ${CHART_DIR}/Chart.yaml
+
+            sed -i "s|^version:.*|version: 0.1.${BUILD_NUMBER}|" ${CHART_DIR}/Chart.yaml
+            sed -i "s|^appVersion:.*|appVersion: \\"${IMAGE_TAG}\\"|" ${CHART_DIR}/Chart.yaml
+
+            echo "===== Chart.yaml AFTER update ====="
             cat ${CHART_DIR}/Chart.yaml
           """
         }
@@ -113,17 +128,22 @@ spec:
     stage('Package Helm Chart') {
       steps {
         container('helmkubectl') {
-          sh """
+          sh '''
             rm -rf packaged
             mkdir -p packaged
 
+            echo "===== Helm Version ====="
             helm version
+
+            echo "===== Helm Lint ====="
             helm lint ${CHART_DIR}
+
+            echo "===== Package Helm Chart ====="
             helm package ${CHART_DIR} -d packaged
 
             echo "===== Packaged Helm Chart ====="
             ls -lh packaged
-          """
+          '''
         }
       }
     }
@@ -136,20 +156,25 @@ spec:
             usernameVariable: 'JFROG_USER',
             passwordVariable: 'JFROG_PASS'
           )]) {
-            sh """
-        rm -rf packaged
-        mkdir -p packaged
+            sh '''
+              echo "===== Packaged Directory Contents ====="
+              ls -lh packaged
 
-        echo "===== Chart.yaml BEFORE package ====="
-        cat ${CHART_DIR}/Chart.yaml
+              CHART_PACKAGE=$(ls packaged/*.tgz | head -n 1)
 
-        helm version
-        helm lint ${CHART_DIR}
-        helm package ${CHART_DIR} -d packaged
+              if [ -z "${CHART_PACKAGE}" ]; then
+                echo "ERROR: No .tgz chart package found in packaged/"
+                exit 1
+              fi
 
-        echo "===== Packaged Helm Chart ====="
-        ls -lh packaged
-            """
+              echo "Using chart package: ${CHART_PACKAGE}"
+
+              echo "===== Helm Registry Login (JFrog OCI) ====="
+              echo "${JFROG_PASS}" | helm registry login ${JFROG_HOST} -u "${JFROG_USER}" --password-stdin
+
+              echo "===== Push Helm Chart to JFrog OCI ====="
+              helm push ${CHART_PACKAGE} ${JFROG_OCI}
+            '''
           }
         }
       }
@@ -163,9 +188,14 @@ spec:
             usernameVariable: 'JFROG_USER',
             passwordVariable: 'JFROG_PASS'
           )]) {
-            sh """
+            sh '''
+              echo "===== Helm Registry Login (JFrog OCI) ====="
               echo "${JFROG_PASS}" | helm registry login ${JFROG_HOST} -u "${JFROG_USER}" --password-stdin
 
+              echo "===== Verify OCI Chart Exists ====="
+              helm show chart ${JFROG_OCI}/${CHART_NAME} --version 0.1.${BUILD_NUMBER}
+
+              echo "===== Deploy / Upgrade Helm Release ====="
               helm upgrade --install ${RELEASE_NAME} ${JFROG_OCI}/${CHART_NAME} \
                 --version 0.1.${BUILD_NUMBER} \
                 --namespace ${NAMESPACE} \
@@ -175,12 +205,12 @@ spec:
                 --wait \
                 --timeout 5m
 
-              echo "===== Verify Deployment ====="
+              echo "===== Verify Kubernetes Resources ====="
               kubectl get pods -n ${NAMESPACE}
               kubectl get svc -n ${NAMESPACE}
               kubectl get deploy -n ${NAMESPACE}
               kubectl get ingress -n ${NAMESPACE} || true
-            """
+            '''
           }
         }
       }
@@ -190,7 +220,9 @@ spec:
   post {
     always {
       container('helmkubectl') {
-        sh 'helm registry logout ${JFROG_HOST} || true'
+        sh '''
+          helm registry logout ${JFROG_HOST} || true
+        '''
       }
     }
     success {
