@@ -5,12 +5,12 @@ image:
   tag: "latest"
   pullPolicy: IfNotPresent
 
+containerPort: 80
+
 service:
   type: ClusterIP
   port: 80
   targetPort: 80
-
-containerPort: 80
 
 ingress:
   enabled: true
