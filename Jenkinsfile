@@ -69,11 +69,11 @@ spec:
     stage('Build Docker Image') {
       steps {
         container('docker') {
-          sh '''
+          sh """
             docker version
             docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} .
             docker tag ${DOCKER_IMAGE}:${IMAGE_TAG} ${DOCKER_IMAGE}:latest
-          '''
+          """
         }
       }
     }
@@ -100,12 +100,12 @@ spec:
     stage('Update Chart Version') {
       steps {
         container('helmkubectl') {
-          sh '''
+          sh """
             sed -i 's|^version:.*|version: 0.1.${BUILD_NUMBER}|' ${CHART_DIR}/Chart.yaml
             sed -i 's|^appVersion:.*|appVersion: "${IMAGE_TAG}"|' ${CHART_DIR}/Chart.yaml
             echo "===== Updated Chart.yaml ====="
             cat ${CHART_DIR}/Chart.yaml
-          '''
+          """
         }
       }
     }
@@ -113,7 +113,7 @@ spec:
     stage('Package Helm Chart') {
       steps {
         container('helmkubectl') {
-          sh '''
+          sh """
             rm -rf packaged
             mkdir -p packaged
 
@@ -123,7 +123,7 @@ spec:
 
             echo "===== Packaged Helm Chart ====="
             ls -lh packaged
-          '''
+          """
         }
       }
     }
@@ -136,7 +136,7 @@ spec:
             usernameVariable: 'JFROG_USER',
             passwordVariable: 'JFROG_PASS'
           )]) {
-            sh '''
+            sh """
         rm -rf packaged
         mkdir -p packaged
 
@@ -149,7 +149,7 @@ spec:
 
         echo "===== Packaged Helm Chart ====="
         ls -lh packaged
-            '''
+            """
           }
         }
       }
@@ -163,7 +163,7 @@ spec:
             usernameVariable: 'JFROG_USER',
             passwordVariable: 'JFROG_PASS'
           )]) {
-            sh '''
+            sh """
               echo "${JFROG_PASS}" | helm registry login ${JFROG_HOST} -u "${JFROG_USER}" --password-stdin
 
               helm upgrade --install ${RELEASE_NAME} ${JFROG_OCI}/${CHART_NAME} \
@@ -180,7 +180,7 @@ spec:
               kubectl get svc -n ${NAMESPACE}
               kubectl get deploy -n ${NAMESPACE}
               kubectl get ingress -n ${NAMESPACE} || true
-            '''
+            """
           }
         }
       }
