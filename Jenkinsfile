@@ -197,13 +197,12 @@ spec:
 
               echo "===== Deploy / Upgrade Helm Release ====="
               helm upgrade --install ${RELEASE_NAME} ${JFROG_OCI}/${CHART_NAME} \
-                --version 0.1.${BUILD_NUMBER} \
-                --namespace ${NAMESPACE} \
-                --create-namespace \
-                --set image.repository=${DOCKER_IMAGE} \
-                --set image.tag=${IMAGE_TAG} \
-                --wait \
-                --timeout 5m
+              --version 0.1.${BUILD_NUMBER} \
+              --namespace ${NAMESPACE} \
+              --set image.repository=${DOCKER_IMAGE} \
+              --set image.tag=${IMAGE_TAG} \
+              --wait \
+              --timeout 5m
 
               echo "===== Verify Kubernetes Resources ====="
               kubectl get pods -n ${NAMESPACE}
