@@ -117,7 +117,7 @@ spec:
 
             sed -i "s|^version:.*|version: 0.1.${BUILD_NUMBER}|" ${CHART_DIR}/Chart.yaml
             sed -i "s|^appVersion:.*|appVersion: \\"${IMAGE_TAG}\\"|" ${CHART_DIR}/Chart.yaml
-
+            sed -i "s|^tag:.*|tag: \\"${IMAGE_TAG}\\"|" ${CHART_DIR}/values.yaml
             echo "===== Chart.yaml AFTER update ====="
             cat ${CHART_DIR}/Chart.yaml
           """
