@@ -11,7 +11,7 @@
 <ul>
     <li><a href="category?topic=business">Business</a></li>
     <li><a href="category?topic=technology">Technology</a></li>
-    <li><a href="category?topic=sports">devops</a></li>
+    <li><a href="category?topic=sports">devops-class</a></li>
     <li><a href="category?topic=world">World</a></li>
     <li><a href="category?topic=entertainment">Entertainment</a></li>
 </ul>
