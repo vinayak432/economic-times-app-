@@ -120,6 +120,7 @@ spec:
             sed -i "s|^tag:.*|tag: \\"${IMAGE_TAG}\\"|" ${CHART_DIR}/values.yaml
             echo "===== Chart.yaml AFTER update ====="
             cat ${CHART_DIR}/Chart.yaml
+            cat ${CHART_DIR}/values.yaml
           """
         }
       }
