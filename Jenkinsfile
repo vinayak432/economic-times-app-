@@ -179,41 +179,6 @@ spec:
         }
       }
     }
-
-    stage('Deploy to Kubernetes') {
-      steps {
-        container('helmkubectl') {
-          withCredentials([usernamePassword(
-            credentialsId: 'jfrog-creds',
-            usernameVariable: 'JFROG_USER',
-            passwordVariable: 'JFROG_PASS'
-          )]) {
-            sh '''
-              echo "===== Helm Registry Login (JFrog OCI) ====="
-              echo "${JFROG_PASS}" | helm registry login ${JFROG_HOST} -u "${JFROG_USER}" --password-stdin
-
-              echo "===== Verify OCI Chart Exists ====="
-              helm show chart ${JFROG_OCI}/${CHART_NAME} --version 0.1.${BUILD_NUMBER}
-
-              echo "===== Deploy / Upgrade Helm Release ====="
-              helm upgrade --install ${RELEASE_NAME} ${JFROG_OCI}/${CHART_NAME} \
-              --version 0.1.${BUILD_NUMBER} \
-              --namespace ${NAMESPACE} \
-              --set image.repository=${DOCKER_IMAGE} \
-              --set image.tag=${IMAGE_TAG} \
-              --wait \
-              --timeout 5m
-
-              echo "===== Verify Kubernetes Resources ====="
-              kubectl get pods -n ${NAMESPACE}
-              kubectl get svc -n ${NAMESPACE}
-              kubectl get deploy -n ${NAMESPACE}
-              kubectl get ingress -n ${NAMESPACE} || true
-            '''
-          }
-        }
-      }
-    }
   }
 
   post {
